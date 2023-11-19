@@ -3,7 +3,38 @@ from typing import Self
 
 class DictConverterMixin:
     def to_dict(self):
-        ...
+        return self._convert_dict(self.__dict__)
+
+    def _unmangle(self, attr_name):
+        if attr_name.startswith("_"):
+            return attr_name.split("__", 1)[-1]
+        return attr_name
+
+
+    def _convert_dict(self, attrs):
+        dct = {}
+        for attr_name, attr in attrs.items():
+            unmangled_name = attr_name
+            if "__" in attr_name:
+                unmangled_name = self._unmangle(attr_name)
+            dct[unmangled_name] = self._convert(attr)
+        return dct
+
+    def _convert_list(self, attr_list):
+        return [self._convert(v) for v in attr_list]
+
+    def _convert(self, attr):
+        match attr:
+            case DictConverterMixin():
+                return attr.to_dict()
+            case dict():
+                return self._convert_dict(attr)
+            case list():
+                return self._convert_list(attr)
+            case object() if hasattr(attr, '__dict__'):
+                return self._convert_dict(attr.__dict__)
+            case _:
+                return attr 
 
 class Company(DictConverterMixin):
     def __init__(self, company_name: str, ticker: str):
